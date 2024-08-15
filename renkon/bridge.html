@@ -13,6 +13,8 @@
         const render = preactModule.render;
         const entries = document.querySelector("#entries");
 
+	window.top.postMessage({event: "appReady"});
+
 	const sessionSpec = (() => document.querySelector("#sessionName").textContent)(Events.click("setSessionButton"));
 
         const socket = Behaviors.collect(undefined, Events.change(sessionSpec), (old, sessionSpec) => {
@@ -60,7 +62,11 @@
         });
 
         const messenger = ((newEntries) => {
-          Events.message("bridgeEntries", newEntries);
+            const list = newEntries.list;
+            if (!list || list.length !== 1) {return;}
+            const words = list[0].words.map(w => w.word);
+            console.log("sending newEntries", words.join(" "));
+            Events.message("bridgeEntries", words.join(" "));
         })(newEntries);
 
         const entryMapper = ((html, formatTime) => (attrs) => {return html`

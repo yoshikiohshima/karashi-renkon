@@ -219,7 +219,7 @@ class MiniBrowser {
         this.publish(this.id, "urlChanged");
     }
 
-    removeCover() {
+  removeCover() {
         if (this.cover) {
             this.cover.remove();
             this.cover = null;

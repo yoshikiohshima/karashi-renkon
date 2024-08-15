@@ -1819,14 +1819,8 @@ class PasteUpModel {
             // nov 2020: for now, the set of app buttons is fixed.
             let appDefs = {
                 link: {
-                    label: "web page", iconName: "link.svgIcon",
-                    urlTemplate: "../cobrowser-single/?q=${q}", order: 10,
-                    noURLEdit: true,
-                    noSandbox: true,
-                    pressHold: {
-                        appName: "link:secondary", label: "custom app", iconName: "link.svgIcon",
-                        urlTemplate: null, order: 1
-                    }
+                    label: "custom app", iconName: "link.svgIcon",
+                    urlTemplate: null, order: 10,
                 },
                 // googleworkspace: {
                 //     iconName: "googleworkspace.svgIcon",
@@ -2587,6 +2581,8 @@ class PasteUpView {
 
         Messenger.on("renkon:substrateAppInfo", "handleSubstrateAppInfo");
         Messenger.on("renkon:bridgeEntries", "handleBridgeEntries");
+        Messenger.on("renkon:sentence", "handleSentence");
+        
         Messenger.on("renkon:action", "handleRenkonCommand");
 
         this.sounds = {};
@@ -3185,50 +3181,71 @@ class PasteUpView {
     handleSubstrateAppInfo(data, source) {
         let childNodes = this.model.getChildNodes();
         let sticky = childNodes.find((c) => c.getClassList() && c.getClassList().includes("sticky-note"));
+        if (!sticky) {return;}
         let textSpec = sticky._me.get("target");
         let text = this.model.getElement(textSpec);
         let content = text.call("TextModel", "textContent");
 
         if (!this.renkonPromise) {
             this.renkonPromise = import("../renkon/renkon.js");
-            this.renkonPromise.then(renkonModule => {
-                this.setupProgram = renkonModule.setupProgram;
-                this.evaluator = renkonModule.evaluator;
+        }
+        this.renkonPromise.then(renkonModule => {
+            this.setupProgram = renkonModule.setupProgram;
+            this.evaluator = renkonModule.evaluator;
+            if (!this.programState) {
                 this.programState = new renkonModule.ProgramState();
-                this.setupProgram([content], this.programState);
-                if (!this.programState.evaluatorRunning) {
-                    this.evaluator(this.programState);
-                }
-                console.log(this.programState);
-            });
+            }
+            this.setupProgram([content], this.programState);
+            if (!this.programState.evaluatorRunning) {
+                this.evaluator(this.programState);
+            }
+            console.log(this.programState);
+        });
+    }
+
+    handleBridgeEntries(data, source) {
+        console.log("bridgeEntries", data);
+        if (this.programState) {
+            this.programState.changeList.set("sentence", data);
+        }
+    }
+
+    handleSentence(data, source) {
+        let commandPair = [...this.iframes].find(([key, value]) => {
+            return value.src.endsWith("commands.html");
+        });
+        
+        if (commandPair) {
+            Croquet.Messenger.send("renkon:sentence", data, commandPair[1].contentWindow);
         }
     }
 
     handleBridgeEntries(data, source) {
         console.log(data);
-        let list = data.list;
-        if (!list || list.length !== 1) {return;}
-        let words = list[0].words.map(w => w.word);
         if (this.programState) {
-            this.programState.changeList.set("sentence", words);
+            this.programState.changeList.set("sentence", data);
         }
     }
 
     handleRenkonCommand(data, source) {
-        if (data === "openWindow") {
-            data = {
-                x: 10000,
-                y: 10000,
-                width: 800,
-                height: 600,
-                viewId: this.viewId,
-                type: "custom",
-                url: null,
-                appInfo: null
+        if (data.command.startsWith("newIFrame")) {
+            const payload = {
+                ...{
+                    x: 10000,
+                    y: 10000,
+                    width: 800,
+                    height: 600,
+                    viewId: this.viewId,
+                    type: "custom",
+                    url: null,
+                    appInfo: null
+                },
             };
-            console.log("publish", this.parentNode.model.id, data);
-            console.log("publish", this.parentNode.model.id, data);
-            this.publish(this.parentNode.model.id, "newIFrame", data);
+            this.publish(this.parentNode.model.id, "newIFrame", payload);
+        } else if (data.action === "trashObject") {
+        } else if (data.action === "copyObject") {
+        } else if (data.action === "moveObjectEdges") {
+        } else if (data.action === "bringToFront") {
         }
     }
 
@@ -4547,7 +4564,6 @@ class AssetLibrary {
     }
 }
 
-/* eslint-disable import/first */
 import {supplemental} from "./pitch-supplemental.js";
 import {PasteUpSaver} from "./pitch-saver.js";
 import {PasteUpSaver3} from "./pitch-saver3.js";

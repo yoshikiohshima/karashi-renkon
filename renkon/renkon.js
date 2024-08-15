@@ -28107,6 +28107,7 @@ const Events = {
   message(event, data2, directWindow) {
     const isInIframe = window.top !== window;
     const obj = { event: `renkon:${event}`, data: data2 };
+    console.log("message", obj);
     if (isInIframe) {
       window.top.postMessage(obj, "*");
       return;

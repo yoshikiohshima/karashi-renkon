@@ -2198,11 +2198,9 @@ class PresentationButtonView {
         }
 
         // a demo feature
-        /* nov 2020: disallow on Presentation menu
-        if (window.location.search.indexOf("scripting=true") >= 0) {
+        if (true === true) {// window.location.search.indexOf("scripting=true")
             items.push({ value: "openWorkspace", label: "Workspace" });
         }
-        */
 
         let DOMMenu = pad.model.getLibrary("widgets.DOMMenu"); // any model will do
         let holder = document.createElement("div");
@@ -2361,4 +2359,40 @@ class RoomParticipantsView {
     }
 }
 
-export const supplemental = {TitleView, MiddleView, PeerView, FrameModel, FrameView, FrameMoveView, FrameResizeModel, FrameResizeView, FrameMenuModel, FrameMenuView, FrameLockModel, FrameLockView, FrameTrashModel, FrameTrashView, FrameAddressEditModel, FrameAddressEditView, RadarModel, RadarView, RadarButtonView, VersionStringView, VSeparatorModel, VSeparatorView, SeparatorModel, SeparatorView, ScaleReadOutModel, ScaleReadOutView, PresentationButtonModel, PresentationButtonView, AnnotationButtonModel, AnnotationButtonView, RoomNameModel, RoomNameView, RoomParticipantsModel, RoomParticipantsView};
+class RenkonWorkspaceView {
+    init() {
+        this.subscribe(this.model.id, "accept", "accept");
+    }
+
+    accept() {
+        if (!this.renkonPromise) {
+            this.renkonPromise = import("../renkon/renkon.js");
+        }
+        this.renkonPromise.then(renkonModule => {
+            this.setupProgram = renkonModule.setupProgram;
+            this.evaluator = renkonModule.evaluator;
+            if (!this.programState) {
+                let scaler = window.topView.querySelector("#scaler");
+                this.programState = new renkonModule.ProgramState(Date.now(), scaler);
+            }
+
+            let content = this.model.value;
+            this.setupProgram([content], this.programState);
+            if (!this.programState.evaluatorRunning) {
+                this.evaluator(this.programState);
+            }
+            console.log(this.programState);
+        });
+    }
+
+    handleRenkonMessage(data, source) {
+        console.log("renkonMessage", data);
+        if (this.programState) {
+            for (let key in data) {
+                this.programState.changeList.set(key, data[key]);
+            }
+        }
+    }
+}
+
+export const supplemental = {TitleView, MiddleView, PeerView, FrameModel, FrameView, FrameMoveView, FrameResizeModel, FrameResizeView, FrameMenuModel, FrameMenuView, FrameLockModel, FrameLockView, FrameTrashModel, FrameTrashView, FrameAddressEditModel, FrameAddressEditView, RadarModel, RadarView, RadarButtonView, VersionStringView, VSeparatorModel, VSeparatorView, SeparatorModel, SeparatorView, ScaleReadOutModel, ScaleReadOutView, PresentationButtonModel, PresentationButtonView, AnnotationButtonModel, AnnotationButtonView, RoomNameModel, RoomNameView, RoomParticipantsModel, RoomParticipantsView, RenkonWorkspaceView};

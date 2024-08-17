@@ -27261,18 +27261,17 @@ function positionAdd(p, l) {
 const renkonGlobals = /* @__PURE__ */ new Set([
   "Events",
   "Behaviors",
-  "_state"
+  "Renkon"
 ]);
 function transpileJavaScript(node) {
   var _a3;
   const outputs = Array.from(new Set((_a3 = node.declarations) == null ? void 0 : _a3.map((r) => r.name)));
   const only = outputs.length === 0 ? "" : outputs[0];
   const inputs = Array.from(new Set(node.references.map((r) => r.name))).filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
-  const additional = `${inputs.length === 0 ? "" : ", "} _state`;
   const forceVars = Array.from(new Set(node.forceVars.map((r) => r.name))).filter((n) => !defaultGlobals.has(n) && !renkonGlobals.has(n));
   const output = new Sourcemap(node.input).trim();
   rewriteRenkonCalls(output, node.body);
-  output.insertLeft(0, `, body: (${inputs}${additional}) => {
+  output.insertLeft(0, `, body: (${inputs}) => {
 `);
   output.insertLeft(0, `, outputs: ${JSON.stringify(only)}`);
   output.insertLeft(0, `, inputs: ${JSON.stringify(inputs)}`);
@@ -27329,7 +27328,7 @@ function rewriteRenkonCalls(output, body) {
                 output.insertRight(arg.end, '"');
               }
             } else if (callee.property.name === "send") {
-              output.insertLeft(node.arguments[0].start, '_state, "');
+              output.insertLeft(node.arguments[0].start, 'Renkon, "');
               output.insertRight(node.arguments[0].end, '"');
             } else if (callee.property.name === "collect") {
               output.insertLeft(node.arguments[1].start, '"');
@@ -27373,7 +27372,7 @@ function defaultReady(node, state) {
   return true;
 }
 class ProgramState {
-  constructor(startTime) {
+  constructor(startTime, app) {
     __publicField(this, "order");
     __publicField(this, "nodes");
     __publicField(this, "streams");
@@ -27385,6 +27384,7 @@ class ProgramState {
     __publicField(this, "startTime");
     __publicField(this, "evaluatorRunning");
     __publicField(this, "updated");
+    __publicField(this, "app");
     this.order = [];
     this.nodes = /* @__PURE__ */ new Map();
     this.streams = /* @__PURE__ */ new Map();
@@ -27395,6 +27395,7 @@ class ProgramState {
     this.startTime = startTime;
     this.evaluatorRunning = 0;
     this.updated = false;
+    this.app = app;
   }
   ready(node) {
     const output = node.outputs;
@@ -27851,7 +27852,7 @@ function setupProgram(scripts, state) {
     }
   }
   const translated = jsNodes.map((jsNode) => transpileJavaScript(jsNode));
-  const evaluated = translated.map((tr) => evalCode(tr));
+  const evaluated = translated.map((tr) => evalCode(tr, state));
   const sorted = topologicalSort(evaluated);
   const newNodes = /* @__PURE__ */ new Map();
   for (const newNode of evaluated) {
@@ -28033,8 +28034,8 @@ function eventBody(options) {
 function registerEvent(state, receiver, value) {
   state.changeList.set(receiver, value);
 }
-function renkonify(func) {
-  const programState = new ProgramState(Date.now());
+function renkonify(func, optSystem) {
+  const programState = new ProgramState(Date.now(), optSystem);
   const { params, returnArray, output } = getFunctionBody(func.toString());
   console.log(params, returnArray, output);
   setupProgram([output], programState);
@@ -28107,7 +28108,6 @@ const Events = {
   message(event, data2, directWindow) {
     const isInIframe = window.top !== window;
     const obj = { event: `renkon:${event}`, data: data2 };
-    console.log("message", obj);
     if (isInIframe) {
       window.top.postMessage(obj, "*");
       return;
@@ -28142,10 +28142,10 @@ const Behaviors = {
     return `${base2}/${partialURL}`;
   }
 };
-function evalCode(str) {
+function evalCode(str, state) {
   let code = `return ${str}`;
-  let func = new Function("Events", "Behaviors", code);
-  let val = func(Events, Behaviors);
+  let func = new Function("Events", "Behaviors", "Renkon", code);
+  let val = func(Events, Behaviors, state);
   val.code = str;
   return val;
 }
@@ -28304,7 +28304,7 @@ function resizeHandler() {
     dock.style.left = `${window.innerWidth - 80}px`;
   }
 }
-function view() {
+function view(optSystem) {
   const url = new URL(window.location.toString());
   let maybeDoc = url.searchParams.get("doc");
   let semi;
@@ -28316,7 +28316,7 @@ function view() {
   }
   let hideEditor = url.searchParams.get("hideEditor");
   const renkon = document.body.querySelector("#renkon");
-  const programState = new ProgramState(Date.now());
+  const programState = new ProgramState(Date.now(), optSystem);
   window.programState = programState;
   let { dock, editorView } = createEditorDock(renkon, programState);
   if (hideEditor) {

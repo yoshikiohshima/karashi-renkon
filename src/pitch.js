@@ -2309,13 +2309,13 @@ class PasteUpModel {
     openWorkspace(info, maybeTextFrame) {
         let textFrame = maybeTextFrame || this.newNativeText({x: info.x + 200, y: info.y + 200, width: 400, height: 300});
         let text = textFrame.querySelector("#text");
-        this.workspaceAccepted({ref: text.asElementRef(), text: undefined});
 
-        let scriptors = {...this._get("scriptors")};
-        scriptors[text.asElementRef().asKey()] = {
-            textFrameRef: textFrame.asElementRef(),
-        };
-        this.subscribe(text.id, "text", "PasteUpModel.workspaceAccepted");
+        text.addViewCode("boards.RenkonWorkspaceView");
+
+        let renkon = {...this._get("renkon")};
+        renkon[text.id] = text;
+        this._set("renkon", renkon);
+        console.log("renkon workspaces", this._get("renkon"));
     }
 
     workspaceAccepted(data) {
@@ -2579,11 +2579,7 @@ class PasteUpView {
         Messenger.on("leaveSoundRequest", "handleLeaveSoundRequest");
         Messenger.on("enterSoundRequest", "handleEnterSoundRequest");
 
-        Messenger.on("renkon:substrateAppInfo", "handleSubstrateAppInfo");
-        Messenger.on("renkon:bridgeEntries", "handleBridgeEntries");
-        Messenger.on("renkon:sentence", "handleSentence");
-        
-        Messenger.on("renkon:action", "handleRenkonCommand");
+        Croquet.Messenger.on("renkon:renkonMessage", "handleRenkonMessage");
 
         this.sounds = {};
         for (const asset of ["message", "enter", "leave"]) {
@@ -3178,52 +3174,30 @@ class PasteUpView {
         }
     }
 
-    handleSubstrateAppInfo(data, source) {
-        let childNodes = this.model.getChildNodes();
-        let sticky = childNodes.find((c) => c.getClassList() && c.getClassList().includes("sticky-note"));
-        if (!sticky) {return;}
-        let textSpec = sticky._me.get("target");
-        let text = this.model.getElement(textSpec);
-        let content = text.call("TextModel", "textContent");
+    handleRenkonMessage(data, source) {
+        console.log("renkonMessage", data);
 
-        if (!this.renkonPromise) {
-            this.renkonPromise = import("../renkon/renkon.js");
-        }
-        this.renkonPromise.then(renkonModule => {
-            this.setupProgram = renkonModule.setupProgram;
-            this.evaluator = renkonModule.evaluator;
-            if (!this.programState) {
-                this.programState = new renkonModule.ProgramState();
+        let renkon = this.model._get("renkon");
+        let world = this.model.wellKnownModel("worldModel");
+        
+        for (let id in renkon) {
+            let view = window.topView.ensureView(renkon[id].asElementRef(), world);
+            if (view.programState) {
+                for (let key in data) {
+                    view.programState.changeList.set(key, data[key]);
+                }
             }
-            this.setupProgram([content], this.programState);
-            if (!this.programState.evaluatorRunning) {
-                this.evaluator(this.programState);
-            }
-            console.log(this.programState);
-        });
-    }
-
-    handleBridgeEntries(data, source) {
-        console.log("bridgeEntries", data);
-        if (this.programState) {
-            this.programState.changeList.set("sentence", data);
         }
     }
 
-    handleSentence(data, source) {
-        let commandPair = [...this.iframes].find(([key, value]) => {
-            return value.src.endsWith("commands.html");
+    sendMessage(data, target) {
+        console.log("sendMessage", data, target);
+        let targetPair = [...this.iframes].find(([key, value]) => {
+            return value.src.endsWith(target);
         });
         
-        if (commandPair) {
-            Croquet.Messenger.send("renkon:sentence", data, commandPair[1].contentWindow);
-        }
-    }
-
-    handleBridgeEntries(data, source) {
-        console.log(data);
-        if (this.programState) {
-            this.programState.changeList.set("sentence", data);
+        if (targetPair) {
+            targetPair[1].contentWindow.postMessage({event: data.event, data: data.data}, "*");
         }
     }
 
@@ -4595,6 +4569,7 @@ export const boards = {
         supplemental.AnnotationButtonModel, supplemental.AnnotationButtonView,
         supplemental.RoomNameModel, supplemental.RoomNameView,
         supplemental.RoomParticipantsModel, supplemental.RoomParticipantsView,
+        supplemental.RenkonWorkspaceView,
         ...drawing.expanders,
     ],
     functions: [p],

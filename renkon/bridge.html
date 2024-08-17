@@ -46,8 +46,6 @@
           });
         })(bridgeModule, sessionSpec, Events.click("logo"));
 
-        Events.message("substrateAppInfo", sessionSpec)
-
         const formatTime = bridgeModule.formatTime;
         const ev = Events.next(bridge());
 
@@ -66,7 +64,7 @@
             if (!list || list.length !== 1) {return;}
             const words = list[0].words.map(w => w.word);
             console.log("sending newEntries", words.join(" "));
-            Events.message("bridgeEntries", words.join(" "));
+            Events.message("renkonMessage", {sentence: words.join(" ")});
         })(newEntries);
 
         const entryMapper = ((html, formatTime) => (attrs) => {return html`

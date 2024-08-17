@@ -46,7 +46,7 @@
 	  const response = responses[responses.length - 1];
 	  const match = /\s*COMMAND\s+(.*)/.exec(response);
 	  if (match) {
-	      Events.message("action", {command: match[1]});
+	      Events.message("renkonMessage", {command: match[1]});
 	  }
 	})(responses);
 

@@ -1,0 +1,8 @@
+<script type="module">
+  import {getParams} from "./src/main.js";
+  console.log(getParams("function foo(a, b) {return a + b}"));
+  console.log(getParams("function foo(a, ...b) {return [...b, a]}"));
+  console.log(getParams("function foo({a, b}) {return [b, a]}"));
+  console.log(getParams("function foo([a, b]) {return [b, a]}"));
+</script>
+

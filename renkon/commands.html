@@ -6,11 +6,49 @@
   <body>
    <div id="renkon">
       <script type="reactive">
-        const llama = import("./commands/llama.js");
         const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
         const html = preactModule.html;
         const render = preactModule.render;
         const output = document.querySelector("#output");
+
+        const commands = import("https://substrate.home.arpa/tool-call/js/commands.js");
+        const suggest = import("https://substrate.home.arpa/tool-call/js/suggest.js");
+
+        const commandList = new commands.StaticCommands({
+          "newIFrame": {
+            "description": "open a frame",
+            "parameters": {},
+            "returns": {
+              "ok": {type: "boolean", description: "true if the frame was opened successfully"},
+            },
+            async run() {
+              console.log("newIFrame");
+              return { ok: true }
+              // Events.message("renkonMessage", {command: match[1]});
+            }
+          },
+          "moveFrame": {
+            "description": "move a frame by some amount",
+            "parameters": {
+              "name": {type: "string", description: "name of the frame to move"},
+              "x": {type: "number", description: "amount to move horizonally"},
+              "y": {type: "number", description: "amount to move vertically"},
+            },
+            "returns": {
+              "ok": {type: "boolean"},
+            },
+            async run(parameters) {
+              console.log("moveFrame", parameters);
+              return { ok: true }
+            }
+          },
+          //"delete a frame named something",
+          //"bring a frame named something to front".
+        });
+        const suggester = new suggest.Suggester(
+          "https://substrate.home.arpa/tool-call/commands",
+          commandList,
+        );
 
         const abortHandler = Events.click("abort");
         const abortController = Behaviors.collect(new AbortController(), Events.or(abortHandler, Events.change($responses)), (a, b) => {
@@ -21,15 +59,7 @@
 
 	window.top.postMessage({event: "appReady"});
 
-        const config = {
-          params: {model: '/res/model/huggingface/local', max_tokens: 1000, stop: ["</s>", "Llama:", "User:"]},
-          // url: "https://substrate.home.arpa/llama-3-8b-instruct/v1/completions",
-          url: "http://localhost:8080/completion",
-          controller: abortController
-        };
-
-        const gen = llama.llama(command, {...config.params}, config);
-        const v = Events.next(gen);
+        const v = suggester.suggestAndRun(command);
 
         const responses = Behaviors.collect([], Events.or(v, abortHandler), (a, b) => {
           if (b.done === undefined) {
@@ -40,15 +70,6 @@
         });
 
         const delayedChunks = Behaviors.delay(responses, 1000);
-
-	((responses) => {
-	  if (responses.length === 0) {return;}
-	  const response = responses[responses.length - 1];
-	  const match = /\s*COMMAND\s+(.*)/.exec(response);
-	  if (match) {
-	      Events.message("renkonMessage", {command: match[1]});
-	  }
-	})(responses);
 
         const pointer = Events.observe((change) => {
           const pointerMoved = (evt) => {
@@ -107,8 +128,7 @@
         document.querySelector("#output").textContent = Events.delay(Events.change(logged), 1000);
 
 	const command = Events.collect(undefined, Events.or(networkRequest, enter), (_old, request) => {
-          const prompt = `You are a part of a natural language command system. The system is supposed to find a phrase that is a command for an application. You recognize equivalent phrases to one of "open a frame", "move a frame by some amount", "delete a frame named something", and "bring a frame named something to front". When you recognize a phrase that looks like a command, output "COMMAND" with a command spec. When the command is "open a window", the command spec is "newIFrame" with parameters said in the original input.`;
-	  return prompt + "\n\nUser: " + request + "\nLlama:";
+    return request;
 	});
 	  
         const networkRequest = Events.observe((notify) => {

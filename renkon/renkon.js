@@ -27450,6 +27450,19 @@ class ProgramState {
     this.resolved.set(varName, value);
     this.updated = true;
   }
+  spaceURL(partialURL) {
+    var _a3, _b2;
+    const loc = window.location.toString();
+    const semi = loc.indexOf(";");
+    if (semi < 0) {
+      const base22 = ((_b2 = (_a3 = import.meta) == null ? void 0 : _a3.env) == null ? void 0 : _b2.DEV) ? "../" : "../";
+      console.log(base22 + partialURL);
+      return base22 + partialURL;
+    }
+    const index = loc.lastIndexOf("/");
+    let base2 = index >= 0 ? loc.slice(0, index) : loc;
+    return `${base2}/${partialURL}`;
+  }
 }
 class Stream {
   constructor(type, isBehavior) {
@@ -28130,16 +28143,6 @@ const Behaviors = {
   },
   delay(varName, delay) {
     return new DelayedEvent(delay, varName, true);
-  },
-  spaceURL(partialURL) {
-    const loc = window.location.toString();
-    const semi = loc.indexOf(";");
-    if (semi < 0) {
-      return partialURL;
-    }
-    const index = loc.lastIndexOf("/");
-    let base2 = index >= 0 ? loc.slice(0, index) : loc;
-    return `${base2}/${partialURL}`;
   }
 };
 function evalCode(str, state) {
@@ -28304,7 +28307,7 @@ function resizeHandler() {
     dock.style.left = `${window.innerWidth - 80}px`;
   }
 }
-function view(optSystem) {
+function view(optApp) {
   const url = new URL(window.location.toString());
   let maybeDoc = url.searchParams.get("doc");
   let semi;
@@ -28316,7 +28319,7 @@ function view(optSystem) {
   }
   let hideEditor = url.searchParams.get("hideEditor");
   const renkon = document.body.querySelector("#renkon");
-  const programState = new ProgramState(Date.now(), optSystem);
+  const programState = new ProgramState(Date.now(), optApp);
   window.programState = programState;
   let { dock, editorView } = createEditorDock(renkon, programState);
   if (hideEditor) {

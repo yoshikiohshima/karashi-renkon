@@ -6,13 +6,13 @@
   <body>
    <div id="renkon">
       <script type="reactive">
-        const preactModule = import('https://unpkg.com/htm/preact/standalone.module.js');
+        const preactModule = import('./commands/preact.standalone.module.js');
         const html = preactModule.html;
         const render = preactModule.render;
         const output = document.querySelector("#output");
 
-        const commands = import("https://substrate.home.arpa/tool-call/js/commands.js");
-        const suggest = import("https://substrate.home.arpa/tool-call/js/suggest.js");
+        const commands = import("./commands/commands.js");
+        const suggest = import("./commands/suggest.js");
 
         const commandList = new commands.StaticCommands({
           "newIFrame": {
@@ -69,8 +69,6 @@
           return a;
         });
 
-        const tokenId = Behaviors.collect(0, v, (old, v) => old + 1);
-
         const logged = Behaviors.collect("", Events.or(v, abortHandler), (a, b) => {
           if (b.done === undefined) {
             // abortHandler case
@@ -81,9 +79,7 @@
 
         document.querySelector("#output").textContent = Events.delay(Events.change(logged), 1000);
 
-        const command = Events.collect(undefined, Events.or(networkRequest, enter), (_old, request) => {
-          return request;
-        });
+        const command = Events.collect(undefined, Events.or(networkRequest, enter), (_old, request) => request);
           
         const networkRequest = Events.observe((notify) => {
             const handler = (evt) => {

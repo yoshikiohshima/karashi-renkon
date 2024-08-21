@@ -14,6 +14,18 @@
         const commands = import("./commands/commands.js");
         const suggest = import("./commands/suggest.js");
 
+	const newIFrameRun = (parameters) => {
+	    Events.message("renkonMessage", {command: {name: "newIFrame", parameters}});
+            console.log("newIFrame");
+            return Promise.resolve({ ok: true })
+	};
+
+	const moveFrameRun = (parameters) => {
+	    Events.message("renkonMessage", {command: {name: "moveFrame", parameters}});
+            console.log("moveFrame", parameters);
+            return Promise.resolve({ ok: true })
+	};
+
         const commandList = new commands.StaticCommands({
           "newIFrame": {
             "description": "open a frame",
@@ -21,11 +33,7 @@
             "returns": {
               "ok": {type: "boolean", description: "true if the frame was opened successfully"},
             },
-            async run() {
-              console.log("newIFrame");
-              return { ok: true }
-              // Events.message("renkonMessage", {command: match[1]});
-            }
+            "run": newIFrameRun
           },
           "moveFrame": {
             "description": "move a frame by some amount",
@@ -37,10 +45,7 @@
             "returns": {
               "ok": {type: "boolean"},
             },
-            async run(parameters) {
-              console.log("moveFrame", parameters);
-              return { ok: true }
-            }
+              run: moveFrameRun
           },
           //"delete a frame named something",
           //"bring a frame named something to front".

@@ -14,26 +14,16 @@
         const commands = import("./commands/commands.js");
         const suggest = import("./commands/suggest.js");
 
-	const newIFrameRun = (parameters) => {
-	    Events.message("renkonMessage", {command: {name: "newIFrame", parameters}});
-            console.log("newIFrame");
-            return Promise.resolve({ ok: true })
-	};
-
-	const moveFrameRun = (parameters) => {
-	    Events.message("renkonMessage", {command: {name: "moveFrame", parameters}});
-            console.log("moveFrame", parameters);
-            return Promise.resolve({ ok: true })
-	};
-
         const commandList = new commands.StaticCommands({
           "newIFrame": {
             "description": "open a frame",
-            "parameters": {},
+              "parameters": {
+                  "x": {type: "number", description: "x coordinate of the new window"},
+                  "y": {type: "number", description: "y coordinate of the new window"},
+              },
             "returns": {
               "ok": {type: "boolean", description: "true if the frame was opened successfully"},
             },
-            "run": newIFrameRun
           },
           "moveFrame": {
             "description": "move a frame by some amount",
@@ -45,68 +35,50 @@
             "returns": {
               "ok": {type: "boolean"},
             },
-              run: moveFrameRun
           },
           //"delete a frame named something",
           //"bring a frame named something to front".
         });
+
         const suggester = new suggest.Suggester(
           "https://substrate.home.arpa/tool-call/commands",
           commandList,
         );
 
-        const abortHandler = Events.click("abort");
-        const abortController = Behaviors.collect(new AbortController(), Events.or(abortHandler, Events.change($responses)), (a, b) => {
-          console.log("reset");
-          a.abort(); 
-          return new AbortController();
-        });
-
         window.top.postMessage({event: "appReady"});
 
-        const v = suggester.suggestAndRun(command);
+        const suggestion = suggester.suggest(command);
 
-        const responses = Behaviors.collect([], Events.or(v, abortHandler), (a, b) => {
-          if (b.done === undefined) {
-            return a;
-          }
-          if (b.done) return [...a, b.value];
-          return a;
+        ((suggestion) => {
+            const choice = suggestion[0];
+            console.log("choice chocie", choice);
+            if (!choice) {return;}
+            Events.message("renkonMessage", {command: choice});
+        })(suggestion);
+
+        const responses = Behaviors.collect([], suggestion, (a, b) => {
+            console.log("resp", b);
+            if (!Array.isArray(b) || b.length === 0) {return a;}
+            return [...a, `${JSON.stringify(b)}`];
         });
 
-        const logged = Behaviors.collect("", Events.or(v, abortHandler), (a, b) => {
-          if (b.done === undefined) {
-            // abortHandler case
-            return "";
-          }
-          if (b.done) return "";
-          return a + b.value.data.content});
-
-        document.querySelector("#output").textContent = Events.delay(Events.change(logged), 1000);
+        document.querySelector("#output").textContent = Events.change(responses);
 
         const command = Events.collect(undefined, Events.or(networkRequest, enter), (_old, request) => request);
           
-        const networkRequest = Events.observe((notify) => {
-            const handler = (evt) => {
-                console.log("command interpreter:", evt);
-                if (!evt.data?.event?.startsWith("renkon:")) {return;}
-                notify(evt.data.data);
-            }
-            window.addEventListener("message", handler);
-            return () => {window.removeEventListener("message", handler)};
+        const networkRequest = Events.listener(window, "message", (evt) => {
+            if (!evt.data?.event?.startsWith("renkon:")) {return;}
+            console.log("command interpreter:", evt);
+            return evt.data.data;
         });
 
-        const enter = Events.observe((notify) => {
-          const keyDown = (evt) => {
+        const enter = Events.listener(document.querySelector("#input"), "keydown", (evt) => {
             if (evt.key === "Enter") {
               evt.preventDefault();
               evt.stopPropagation();
               console.log("enter");
-              notify(evt.target.textContent);
+                return evt.target.textContent;
             }
-          };
-          document.querySelector("#input").addEventListener("keydown", keyDown);
-          return () => {document.querySelector("#input").removeEventListener("keydown", keyDown)}
         });
       </script>
       <div id="words" style="height:0px;"></div>
@@ -173,12 +145,6 @@
             padding: 10px;
             padding-right: 40px;
             margin-top: 5px;
-        }
-        
-        .fly {
-          position: absolute;
-          top: 0px;
-          left: 0px;
         }
       </style>
    </div>
